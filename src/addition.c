@@ -22,10 +22,21 @@ char *add(const char *x, const char *y, const int base) {
     }
     result[0] = (carry < 10) ? (carry + '0') : (carry - 10 + 'a'); // Handle carry for the most significant digit
 
-    // Adjust result in case there's no carry out
-    if (result[0] == '0') return strdup(result + 1);
+    // Find the first non-zero digit to truncate leading zeros
+    int firstNonZero = 0;
+    while (result[firstNonZero] == '0' && firstNonZero < len) {
+        firstNonZero++;
+    }
+    if (firstNonZero == len + 1) { // All digits were zero
+        char* zero = (char*)malloc(2);
+        zero[0] = '0'; zero[1] = '\0';
+        free(result);
+        return zero;
+    }
 
-    return result;
+    char* finalResult = strdup(result + firstNonZero);
+    free(result); // Free the initially allocated memory
+    return finalResult;
 }
 
 // Pads the given string with zeros on the left to reach the desired maxLength

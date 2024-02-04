@@ -1,7 +1,8 @@
 #ifndef ADDITION_H
 #define ADDITION_H
 
-char* add(char* x, char* y, int c);
-char* padWithZeros(char* number, int length, int maxLength);
+char *add(const char *x, const char *y, const int base);
 
-#endif
+char *padWithZeros(const char *number, const int maxLength);
+
+#endif // ADDITION_H

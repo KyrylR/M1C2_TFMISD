@@ -4,30 +4,36 @@
 
 #include "include/addition.h"
 
-int main(int argc, char* argv[]) {
-    if (argc != 4) {
-        printf("Usage: %s x y c\n", argv[0]);
-        return 1;
-    }
+int main() {
+    char x[256]; // Buffer for first number
+    char y[256]; // Buffer for second number
+    int c;       // Base
 
-    char* x = argv[1];
-    char* y = argv[2];
-    int c = atoi(argv[3]); // Base
+    printf("Enter x: ");
+    scanf("%s", x);
+    printf("Enter y: ");
+    scanf("%s", y);
+    printf("Enter c (base): ");
+    scanf("%d", &c);
 
-    int n = strlen(x);
-    int m = strlen(y);
-    int common_length = (n > m) ? n + 1 : m + 1;
+    const int n = strlen(x);
+    const int m = strlen(y);
+    const int common_length = (n > m) ? n + 1 : m + 1;
 
-    x = padWithZeros(x, n, common_length);
-    y = padWithZeros(y, m, common_length);
+    char* padded_x = padWithZeros(x, common_length);
+    char* padded_y = padWithZeros(y, common_length);
 
-    char* result = add(x, y, c);
+    char* result = add(padded_x, padded_y, c);
 
     printf("Result: %s\n", result);
 
     free(result); // Free the allocated memory
-    free(x);      // Free the padded number
-    free(y);      // Free the padded number
+    free(padded_x); // Free the padded number
+    free(padded_y); // Free the padded number
+
+    printf("Press any key to exit...\n");
+    getchar(); // To catch the newline character
+    getchar(); // Wait for any key
 
     return 0;
 }

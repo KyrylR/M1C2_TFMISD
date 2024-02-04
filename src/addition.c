@@ -4,30 +4,43 @@
 #include <ctype.h>
 #include "addition.h"
 
-char* add(char* x, char* y, int c) {
-    int n = strlen(x);
+// Utility function to convert a character to its integer value based on base c
+int charToInt(const char ch, int base) {
+    if (isdigit(ch)) return ch - '0';
+    if (isalpha(ch)) return tolower(ch) - 'a' + 10;
+    return 0; // Non-alphanumeric characters are treated as 0
+}
 
-    char* result = (char*)malloc((n + 1) * sizeof(char)); // Allocate memory for the result
-    memset(result, '0', (n + 1)); // Initialize result with '0's
+// Adds two numbers represented as strings in a given base and returns the result as a string
+char *add(const char *x, const char *y, const int base) {
+    const int len = strlen(x);
+    char *result = (char *) malloc((len + 2) * sizeof(char)); // Allocate memory for the result + null terminator
+    if (!result) return NULL; // Check for malloc failure
 
-    int b = 0; // current digit of the carry
-    int i, j, k;
+    result[len + 1] = '\0'; // Ensure the string is null-terminated
+    int carry = 0;
 
-    for (i = n - 1, j = n - 1, k = n; i >= 0 || j >= 0; i--, j--, k--) {
-        int xi = (i >= 0) ? ((isdigit(x[i])) ? (x[i] - '0') : (tolower(x[i]) - 'a' + 10)) : 0;
-        int yi = (j >= 0) ? ((isdigit(y[j])) ? (y[j] - '0') : (tolower(y[j]) - 'a' + 10)) : 0;
-        int sum = xi + yi + b;
-        result[k] = (sum % c < 10) ? (sum % c + '0') : (sum % c - 10 + 'a'); // Convert integer to character
-        b = sum / c;
+    for (int i = len; i > 0; i--) {
+        const int sum = charToInt(x[i - 1], base) + charToInt(y[i - 1], base) + carry;
+        result[i] = (sum % base < 10) ? (sum % base + '0') : (sum % base - 10 + 'a');
+        carry = sum / base;
     }
+    result[0] = (carry < 10) ? (carry + '0') : (carry - 10 + 'a'); // Handle carry for the most significant digit
+
+    // Adjust result in case there's no carry out
+    if (result[0] == '0') return strdup(result + 1);
 
     return result;
 }
 
-char* padWithZeros(char* number, int length, int maxLength) {
-    int numZeros = maxLength - length;
-    char* paddedNumber = (char*)malloc((maxLength + 1) * sizeof(char)); // Allocate memory for the padded number
-    memset(paddedNumber, '0', numZeros); // Initialize with leading zeros
-    strcpy(paddedNumber + numZeros, number); // Copy the original number after leading zeros
+// Pads the given string with zeros on the left to reach the desired maxLength
+char *padWithZeros(const char *number, const int maxLength) {
+    const int length = strlen(number);
+    const int numZeros = maxLength - length;
+    char *paddedNumber = (char *) malloc((maxLength + 1) * sizeof(char)); // +1 for null terminator
+    if (!paddedNumber) return NULL; // Check for malloc failure
+
+    memset(paddedNumber, '0', numZeros);
+    strcpy(paddedNumber + numZeros, number);
     return paddedNumber;
 }

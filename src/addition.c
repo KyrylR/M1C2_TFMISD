@@ -2,14 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "addition.h"
 
-// Utility function to convert a character to its integer value based on base c
-int charToInt(const char ch, int base) {
-    if (isdigit(ch)) return ch - '0';
-    if (isalpha(ch)) return tolower(ch) - 'a' + 10;
-    return 0; // Non-alphanumeric characters are treated as 0
-}
+#include "utility.h"
+#include "addition.h"
 
 // Adds two numbers represented as strings in a given base and returns the result as a string
 char *add(const char *x, const char *y, const int base) {
@@ -21,7 +16,7 @@ char *add(const char *x, const char *y, const int base) {
     int carry = 0;
 
     for (int i = len; i > 0; i--) {
-        const int sum = charToInt(x[i - 1], base) + charToInt(y[i - 1], base) + carry;
+        const int sum = charToValue(x[i - 1]) + charToValue(y[i - 1]) + carry;
         result[i] = (sum % base < 10) ? (sum % base + '0') : (sum % base - 10 + 'a');
         carry = sum / base;
     }

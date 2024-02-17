@@ -8,4 +8,6 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_SOURCE_DIR}/mingw-toolchain.cmake)
 
 add_executable(lab2 main.c
         src/cli.c
-        include/cli.h)
+        include/cli.h
+        src/modified_dfs.c
+        include/modified_dfs.h)

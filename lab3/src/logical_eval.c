@@ -46,7 +46,7 @@ int getPrecedence(const char op) {
 // Convert infix expression to prefix notation
 void infixToPrefix(const char *infix, char *prefix) {
     const int length = strlen(infix);
-    char stack[length]; // Stack for operators
+    char stack[length * 3]; // Stack for operators
     int top = -1; // Top of the stack
     int j = 0; // Index for prefix array
 
@@ -135,7 +135,7 @@ void buildTruthTable(const char *templateExpr) {
     fillSemanticTable(semanticTable);
 
     int currentVarRepresentation[26] = {0};
-    const int len = strlen(templateExpr);
+    const int len = strlen(prefix);
 
     // Iterate over all possible combinations of variable truth values
     for (int num = 0; num < totalCombinations; num++) {
@@ -166,7 +166,7 @@ void buildTruthTable(const char *templateExpr) {
 
 bool evaluateExpression(const char *expression, int semanticTable[NUM_OPERATIONS][NUM_VALUES][NUM_VALUES]) {
     const int len = strlen(expression);
-    char stack[len]; // Stack for storing expression elements during evaluation
+    char stack[len * 3]; // Stack for storing expression elements during evaluation
     int top = -1; // Stack top index
 
     for (int i = 0; i < len; i++) {
@@ -189,15 +189,18 @@ bool evaluateExpression(const char *expression, int semanticTable[NUM_OPERATIONS
                 exit(1);
             }
 
-            const bool operand1 = top > 0 ? stack[top--] - '0' : false; // Only get operand1 if not unary
-            const bool operand2 = stack[top] - '0'; // This could be the only operand for unary operators
             bool result;
 
             // Apply the operation
             if (ch == '!') {
+                const bool operand2 = stack[top] - '0';
+
                 // Special handling for unary NOT operator
                 result = semanticTable[opIndex][0][operand2];
             } else {
+                const bool operand1 = stack[top--] - '0';
+                const bool operand2 = stack[top] - '0';
+
                 // Binary operators
                 result = semanticTable[opIndex][operand1][operand2];
             }

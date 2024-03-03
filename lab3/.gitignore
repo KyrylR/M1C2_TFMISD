@@ -1,0 +1,36 @@
+# Ignore build directories
+/build/
+/build-win/
+
+# Ignore compiled executables
+*.o
+*.exe
+
+# Ignore CMake build files and directories
+CMakeFiles/
+CMakeCache.txt
+CMakeScripts/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+cmake-build-debug
+
+# Ignore IDE and editor-specific files
+.vscode/
+.idea/
+*.suo
+*.user
+*.sln.docstates
+*.suo
+*.user
+*.userprefs
+*.sln.docstates
+
+# Ignore any user-specific files
+*.swp
+*~
+
+# Ignore system and temporary files
+.DS_Store
+Thumbs.db
+*.tmp

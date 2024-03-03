@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 #include "logical_eval.h"
 #include "semantic_table.h"
@@ -51,7 +52,7 @@ void infixToPrefix(const char *infix, char *prefix) {
 
     // Start from the right of the infix expression
     for (int i = length - 1; i >= 0; i--) {
-        if (isOperand(infix[i])) {
+        if (isalpha(infix[i])) {
             // If character is an operand, add it to the prefix string
             prefix[j++] = infix[i];
         } else if (infix[i] == ')') {
@@ -127,6 +128,9 @@ void buildTruthTable(const char *templateExpr) {
     printf("| %s\n", templateExpr);
     printf("--------------------------------\n");
 
+    char prefix[256]; // Buffer for the prefix expression
+    infixToPrefix(templateExpr, prefix); // Convert the expression to prefix notation
+
     int semanticTable[NUM_OPERATIONS][NUM_VALUES][NUM_VALUES];
     fillSemanticTable(semanticTable);
 
@@ -139,26 +143,18 @@ void buildTruthTable(const char *templateExpr) {
             currentVarRepresentation[varsArray[numOfVars - 1 - index] - 'a'] = (num >> index) & 1;
         }
 
-        for (int i = 0; templateExpr[i] != '\0'; i++) {
-            if (templateExpr[i] >= 'a' && templateExpr[i] <= 'z') {
-                expression[i] = '0' + currentVarRepresentation[templateExpr[i] - 'a'];
+        for (int i = 0; prefix[i] != '\0'; i++) {
+            if (prefix[i] >= 'a' && prefix[i] <= 'z') {
+                expression[i] = '0' + currentVarRepresentation[prefix[i] - 'a'];
             } else {
-                expression[i] = templateExpr[i];
+                expression[i] = prefix[i];
             }
         }
 
         expression[len] = '\0'; // Null-terminate the expression
 
-        char preprocessedExpression[256]; // Buffer for the preprocessed expression
-
-        // Preprocess and validate the original expression
-        if (!preprocessAndValidateExpression(expression, preprocessedExpression)) {
-            printf("Error: Invalid expression\n");
-            return; // Exit if the expression is invalid
-        }
-
         // Evaluate the generated expression and print the result
-        const bool result = evaluateExpression(preprocessedExpression, semanticTable);
+        const bool result = evaluateExpression(expression, semanticTable);
 
         // Print the current combination and the result
         for (int i = numOfVars - 1; i >= 0; i--) {
@@ -169,15 +165,12 @@ void buildTruthTable(const char *templateExpr) {
 }
 
 bool evaluateExpression(const char *expression, int semanticTable[NUM_OPERATIONS][NUM_VALUES][NUM_VALUES]) {
-    char prefix[256]; // Buffer for the prefix expression
-    infixToPrefix(expression, prefix); // Convert the expression to prefix notation
-
-    const int len = strlen(prefix);
+    const int len = strlen(expression);
     char stack[len]; // Stack for storing expression elements during evaluation
     int top = -1; // Stack top index
 
     for (int i = 0; i < len; i++) {
-        const char ch = prefix[i];
+        const char ch = expression[i];
 
         if (isOperand(ch)) {
             stack[++top] = ch; // Push operand onto stack

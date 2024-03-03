@@ -3,5 +3,5 @@
 int main(void) {
     runCLI();
 
-    return 0; // Successful execution
+    return 0;
 }

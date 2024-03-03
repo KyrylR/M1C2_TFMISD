@@ -1,16 +1,14 @@
-// Add to semantic_table.c
-#include "logical_eval.h"
-
-#include <string.h> // For strchr()
-#include <stdbool.h> // For bool type
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
 
+#include "logical_eval.h"
 #include "semantic_table.h"
 
-// Helper function to find operator index in the operations array
-int findOperationIndex(char op) {
+int findOperationIndex(const char op) {
     switch (op) {
+        case '!': return 0; // NOT
         case '&': return 1; // AND
         case '|': return 2; // OR
         case '^': return 3; // XOR
@@ -19,20 +17,18 @@ int findOperationIndex(char op) {
     }
 }
 
-// Check if a character is an operand
 bool isOperand(const char ch) {
     return ch == '0' || ch == '1';
 }
 
-// Check if a character is an operator
 bool isOperator(const char ch) {
     return ch == '&' || ch == '|' || ch == '!' || ch == '^' || ch == '>';
 }
 
-// Utility function implementations (simplified)
-int getPrecedence(char op) {
-    // Function that defines operator precedence
+int getPrecedence(const char op) {
     switch (op) {
+        case '!': // NOT has the highest precedence
+            return 4;
         case '&': // AND is next
             return 3;
         case '^': // XOR comes after AND
@@ -46,9 +42,9 @@ int getPrecedence(char op) {
     }
 }
 
-// Convert infix expression to Polish (prefix) notation
-void infixToPrefix(const char* infix, char* prefix) {
-    int length = strlen(infix);
+// Convert infix expression to prefix notation
+void infixToPrefix(const char *infix, char *prefix) {
+    const int length = strlen(infix);
     char stack[length]; // Stack for operators
     int top = -1; // Top of the stack
     int j = 0; // Index for prefix array
@@ -86,15 +82,100 @@ void infixToPrefix(const char* infix, char* prefix) {
     prefix[j] = '\0';
 }
 
+int countUniqueVariables(const char *expression, char **varsArray) {
+    bool varsPresent[26] = {false};
+    int uniqueVarsCount = 0;
+    *varsArray = NULL; // Start with a NULL pointer
+
+    // Iterate through each character in the expression
+    for (int i = 0; expression[i] != '\0'; i++) {
+        const char ch = expression[i];
+        // Check if the character is a lowercase letter
+        if (ch >= 'a' && ch <= 'z') {
+            // Convert the letter to an index (e.g., 'a' -> 0, 'b' -> 1, ..., 'z' -> 25)
+            const int index = ch - 'a';
+            // Check if we haven't seen this variable before
+            if (!varsPresent[index]) {
+                varsPresent[index] = true; // Mark this variable as seen
+                uniqueVarsCount++; // Increment the count of unique variables
+
+                // Resize the varsArray to accommodate the new variable
+                *varsArray = realloc(*varsArray, uniqueVarsCount * sizeof(char));
+                if (*varsArray == NULL) {
+                    printf("Memory allocation failed\n");
+                    exit(1); // Exit if memory allocation fails
+                }
+                (*varsArray)[uniqueVarsCount - 1] = ch; // Add the new variable to the array
+            }
+        }
+    }
+
+    return uniqueVarsCount; // Return the total count of unique variables
+}
+
+void buildTruthTable(const char *templateExpr) {
+    char *varsArray;
+    const int numOfVars = countUniqueVariables(templateExpr, &varsArray); // Count the number of unique variables
+
+    const int totalCombinations = 1 << numOfVars; // 2^numOfVars combinations
+    char expression[256]; // Buffer to hold each generated expression
+
+    // Print table header
+    for (int i = 0; i < numOfVars; i++) {
+        printf("%c ", varsArray[i]);
+    }
+    printf("| %s\n", templateExpr);
+    printf("--------------------------------\n");
+
+    int semanticTable[NUM_OPERATIONS][NUM_VALUES][NUM_VALUES];
+    fillSemanticTable(semanticTable);
+
+    int currentVarRepresentation[26] = {0};
+    const int len = strlen(templateExpr);
+
+    // Iterate over all possible combinations of variable truth values
+    for (int num = 0; num < totalCombinations; num++) {
+        for (int index = 0; index < numOfVars; index++) {
+            currentVarRepresentation[varsArray[numOfVars - 1 - index] - 'a'] = (num >> index) & 1;
+        }
+
+        for (int i = 0; templateExpr[i] != '\0'; i++) {
+            if (templateExpr[i] >= 'a' && templateExpr[i] <= 'z') {
+                expression[i] = '0' + currentVarRepresentation[templateExpr[i] - 'a'];
+            } else {
+                expression[i] = templateExpr[i];
+            }
+        }
+
+        expression[len] = '\0'; // Null-terminate the expression
+
+        char preprocessedExpression[256]; // Buffer for the preprocessed expression
+
+        // Preprocess and validate the original expression
+        if (!preprocessAndValidateExpression(expression, preprocessedExpression)) {
+            printf("Error: Invalid expression\n");
+            return; // Exit if the expression is invalid
+        }
+
+        // Evaluate the generated expression and print the result
+        const bool result = evaluateExpression(preprocessedExpression, semanticTable);
+
+        // Print the current combination and the result
+        for (int i = numOfVars - 1; i >= 0; i--) {
+            printf("%d ", (num >> i) & 1); // Print each variable's value in this combination
+        }
+        printf("| %d\n", result); // Print the evaluation result
+    }
+}
+
 bool evaluateExpression(const char *expression, int semanticTable[NUM_OPERATIONS][NUM_VALUES][NUM_VALUES]) {
     char prefix[256]; // Buffer for the prefix expression
     infixToPrefix(expression, prefix); // Convert the expression to prefix notation
 
-    int len = strlen(prefix);
+    const int len = strlen(prefix);
     char stack[len]; // Stack for storing expression elements during evaluation
     int top = -1; // Stack top index
 
-    // Iterate through the expression from right to left
     for (int i = 0; i < len; i++) {
         const char ch = prefix[i];
 
@@ -102,32 +183,36 @@ bool evaluateExpression(const char *expression, int semanticTable[NUM_OPERATIONS
             stack[++top] = ch; // Push operand onto stack
         } else if (isOperator(ch)) {
             // Check if there are enough operands on the stack for the operator
-            if ((ch != '!' && top < 1) || (ch == '!' && top < 0)) { // '!' is unary, others are binary
+            if ((ch != '!' && top < 1) || (ch == '!' && top < 0)) {
+                // '!' is unary, others are binary
                 printf("Error: Insufficient operands\n");
                 exit(1);
             }
 
             // Pop operand(s) from stack and apply the operator
-            int opIndex = findOperationIndex(ch);
+            const int opIndex = findOperationIndex(ch);
             if (opIndex == -1) {
                 printf("Error: Invalid operator\n");
                 exit(1);
             }
 
-            bool operand1 = top > 0 ? stack[top--] - '0' : false; // Only get operand1 if not unary
-            bool operand2 = stack[top] - '0'; // This could be the only operand for unary operators
+            const bool operand1 = top > 0 ? stack[top--] - '0' : false; // Only get operand1 if not unary
+            const bool operand2 = stack[top] - '0'; // This could be the only operand for unary operators
             bool result;
 
             // Apply the operation
-            if (ch == '!') { // Special handling for unary NOT operator
+            if (ch == '!') {
+                // Special handling for unary NOT operator
                 result = semanticTable[opIndex][0][operand2];
-            } else { // Binary operators
+            } else {
+                // Binary operators
                 result = semanticTable[opIndex][operand1][operand2];
             }
 
             // Push the result back onto the stack
             stack[top] = '0' + result;
-        } else if (ch != '(' && ch != ')') { // Skip parentheses for prefix notation, add error handling for unexpected characters
+        } else if (ch != '(' && ch != ')') {
+            // Skip parentheses for prefix notation, add error handling for unexpected characters
             printf("Error: Unexpected character '%c'\n", ch);
             exit(1);
         }
@@ -141,5 +226,3 @@ bool evaluateExpression(const char *expression, int semanticTable[NUM_OPERATIONS
 
     return stack[top] == '1';
 }
-
-

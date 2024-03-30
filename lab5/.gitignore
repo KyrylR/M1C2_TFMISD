@@ -12,7 +12,6 @@ CMakeCache.txt
 CMakeScripts/
 Makefile
 cmake_install.cmake
-cmake-build-debug-event-trace
 install_manifest.txt
 cmake-build-debug
 

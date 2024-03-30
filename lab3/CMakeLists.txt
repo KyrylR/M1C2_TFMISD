@@ -11,5 +11,4 @@ add_executable(lab3 main.c
         include/cli.h
         src/logical_eval.c
         include/logical_eval.h
-        include/semantic_table.h
-        src/semantic_table.c)
+)

@@ -5,7 +5,6 @@
 #include <ctype.h>
 
 #include "logical_eval.h"
-#include "semantic_table.h"
 
 int findOperationIndex(const char op) {
     switch (op) {
@@ -114,25 +113,122 @@ int countUniqueVariables(const char *expression, char **varsArray) {
     return uniqueVarsCount; // Return the total count of unique variables
 }
 
+#define MAX_MODELS 20
+#define MAX_MODEL_LENGTH 256
+
+char** splitIntoModels(const char* prefixExpr, int* numModels, char* modelPointers[MAX_MODELS]) {
+    const int len = strlen(prefixExpr);
+    // !a & b > (a | c > d ^ f)
+    // "fd^ca|>ba!&>"
+    char models[MAX_MODELS][MAX_MODEL_LENGTH];
+    int modelIndex = 0;
+    int i = 0;
+
+    while (i < len) {
+        if (prefixExpr[i] == '!') {
+            // Found a negation operator, treat it as one symbol with the next operand
+            char* leftModel = modelPointers[modelIndex - 1];
+            static char combinedModel[MAX_MODEL_LENGTH];
+            sprintf(combinedModel, "%c%s",  prefixExpr[i], leftModel);
+            strcpy(models[modelIndex - 1], combinedModel);
+            i++;
+        } else if (isalpha(prefixExpr[i])) {
+            // Found an operand, add it as a model
+            sprintf(models[modelIndex], "%c", prefixExpr[i]);
+            modelPointers[modelIndex] = models[modelIndex];
+            modelIndex++;
+            i++;
+        } else {
+            // Found an operator, combine the previous two models
+            char* rightModel = modelPointers[modelIndex - 2];
+            char* leftModel = modelPointers[modelIndex - 1];
+            char combinedModel[MAX_MODEL_LENGTH];
+            sprintf(combinedModel, "%s %c %s", leftModel, prefixExpr[i], rightModel);
+
+            const int leftLen = strlen(leftModel);
+            const int rightLen = strlen(rightModel);
+
+            if (leftLen <= 2 && rightLen <= 2) {
+                modelIndex -= 2;
+            }
+
+            strcpy(models[modelIndex], combinedModel);
+            modelPointers[modelIndex] = models[modelIndex];
+            modelIndex++;
+            i++;
+        }
+    }
+
+    *numModels = modelIndex;
+}
+
+void sortModelPointers(char *modelPointers[], int numModels) {
+    for (int i = 0; i < numModels - 1; i++) {
+        for (int j = 0; j < numModels - i - 1; j++) {
+            if (strlen(modelPointers[j]) > strlen(modelPointers[j + 1])) {
+                // Swap modelPointers[j] and modelPointers[j+1]
+                char *temp = modelPointers[j];
+                modelPointers[j] = modelPointers[j + 1];
+                modelPointers[j + 1] = temp;
+            }
+        }
+    }
+}
+
+void sortStringAlphabetically(char *varsArray) {
+    int n = strlen(varsArray);
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = i + 1; j < n; j++) {
+            if (varsArray[i] > varsArray[j]) {
+                char temp = varsArray[i];
+                varsArray[i] = varsArray[j];
+                varsArray[j] = temp;
+            }
+        }
+    }
+}
+
 void buildTruthTable(const char *templateExpr) {
     char *varsArray;
     const int numOfVars = countUniqueVariables(templateExpr, &varsArray); // Count the number of unique variables
 
+    sortStringAlphabetically(varsArray);
+
     const int totalCombinations = 1 << numOfVars; // 2^numOfVars combinations
     char expression[256]; // Buffer to hold each generated expression
+
+    char prefix[256]; // Buffer for the prefix expression
+    infixToPrefix(templateExpr, prefix); // Convert the expression to prefix notation
+
+    int numModels;
+    char *modelPointers[MAX_MODELS];
+    splitIntoModels(prefix, &numModels, modelPointers);
+
+    sortModelPointers(modelPointers, numModels);
 
     // Print table header
     for (int i = 0; i < numOfVars; i++) {
         printf("%c ", varsArray[i]);
     }
-    printf("| %s\n", templateExpr);
-    printf("--------------------------------\n");
 
-    char prefix[256]; // Buffer for the prefix expression
-    infixToPrefix(templateExpr, prefix); // Convert the expression to prefix notation
+    int maxModelLength = strlen(templateExpr);
 
-    int semanticTable[NUM_OPERATIONS][NUM_VALUES][NUM_VALUES];
-    fillSemanticTable(semanticTable);
+    for (int i = 0; i < numModels - 1; i++) {
+        printf("¦ %-*s ", maxModelLength, modelPointers[i]);
+    }
+
+    printf("¦ %s\n", templateExpr);
+
+    // Print separator line
+    for (int i = 0; i < numOfVars; i++) {
+        printf("--");
+    }
+
+    for (int i = 0; i < numModels; i++) {
+        printf("¦%.*s", maxModelLength + 2, "-------------------------------------");
+    }
+
+    printf("\n");
 
     int currentVarRepresentation[26] = {0};
     const int len = strlen(prefix);
@@ -141,6 +237,34 @@ void buildTruthTable(const char *templateExpr) {
     for (int num = 0; num < totalCombinations; num++) {
         for (int index = 0; index < numOfVars; index++) {
             currentVarRepresentation[varsArray[numOfVars - 1 - index] - 'a'] = (num >> index) & 1;
+        }
+
+        // Evaluate each model and store the results
+        int modelResults[MAX_MODELS];
+        for (int i = 0; i < numModels - 1; i++) {
+            char modelPrefix[256];
+            infixToPrefix(modelPointers[i], modelPrefix);
+
+            const int modelPrefixLen = strlen(modelPrefix);
+            for (int j = 0; j < modelPrefixLen; j++) {
+                if (modelPrefix[j] >= 'a' && modelPrefix[j] <= 'z') {
+                    expression[j] = '0' + currentVarRepresentation[modelPrefix[j] - 'a'];
+                } else {
+                    expression[j] = modelPrefix[j];
+                }
+            }
+            expression[modelPrefixLen] = '\0'; // Null-terminate the expression
+
+            modelResults[i] = evaluateExpression(expression);
+        }
+
+        // Print the current combination and the model results
+        for (int i = numOfVars - 1; i >= 0; i--) {
+            printf("%d ", (num >> i) & 1); // Print each variable's value in this combination
+        }
+
+        for (int i = 0; i < numModels - 1; i++) {
+            printf("¦ %-*d ", maxModelLength, modelResults[i]);
         }
 
         for (int i = 0; prefix[i] != '\0'; i++) {
@@ -154,17 +278,12 @@ void buildTruthTable(const char *templateExpr) {
         expression[len] = '\0'; // Null-terminate the expression
 
         // Evaluate the generated expression and print the result
-        const bool result = evaluateExpression(expression, semanticTable);
-
-        // Print the current combination and the result
-        for (int i = numOfVars - 1; i >= 0; i--) {
-            printf("%d ", (num >> i) & 1); // Print each variable's value in this combination
-        }
-        printf("| %d\n", result); // Print the evaluation result
+        const bool result = evaluateExpression(expression);
+        printf("¦ %d\n", result); // Print the evaluation result
     }
 }
 
-bool evaluateExpression(const char *expression, int semanticTable[NUM_OPERATIONS][NUM_VALUES][NUM_VALUES]) {
+bool evaluateExpression(const char *expression) {
     const int len = strlen(expression);
     char stack[len * 3]; // Stack for storing expression elements during evaluation
     int top = -1; // Stack top index
@@ -196,13 +315,29 @@ bool evaluateExpression(const char *expression, int semanticTable[NUM_OPERATIONS
                 const bool operand2 = stack[top] - '0';
 
                 // Special handling for unary NOT operator
-                result = semanticTable[opIndex][0][operand2];
+                result = !operand2;
             } else {
                 const bool operand1 = stack[top--] - '0';
                 const bool operand2 = stack[top] - '0';
 
                 // Binary operators
-                result = semanticTable[opIndex][operand1][operand2];
+                switch (ch) {
+                    case '&':
+                        result = operand1 && operand2;
+                        break;
+                    case '|':
+                        result = operand1 || operand2;
+                        break;
+                    case '^':
+                        result = operand1 ^ operand2;
+                        break;
+                    case '>':
+                        result = !operand1 || operand2;
+                        break;
+                    default:
+                        printf("Error: Invalid operator\n");
+                        exit(1);
+                }
             }
 
             // Push the result back onto the stack

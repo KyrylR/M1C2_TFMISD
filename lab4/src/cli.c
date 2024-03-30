@@ -24,4 +24,9 @@ void runCLI() {
     } else {
         benchmarkCatalan(n, verbose);
     }
+
+    while ((getchar()) != '\n') {}
+
+    printf("Press Enter key to exit...\n");
+    getchar(); // Wait for Enter key
 }

@@ -11,9 +11,9 @@ link_directories(/opt/homebrew/lib)
 
 set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_SOURCE_DIR}/mingw-toolchain.cmake)
 
-add_executable(lab4 main.c
+add_executable(lab5 main.c
         src/cli.c
         include/cli.h
+        src/math_functions.c
+        include/math_functions.h
 )
-
-target_link_libraries(lab4 gmp)
